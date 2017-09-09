@@ -6,8 +6,6 @@ class Array
     end
 end
 
-
-
 def PrintFormatBinData(data, count_one_line) 
     str_out_ary = []
     s_idx = 0
@@ -77,7 +75,7 @@ def PrintSSHHello(data, direction)
     puts "PrintSSHHello"
     output_str_ary = [
         "=======================================================================",
-        ">>PrintSSHHello   " + direction, 
+        ">> PrintSSHHello   " + direction, 
         "-----------------------------------------------------------------------"]
 
     data_format = [
@@ -95,13 +93,7 @@ def PrintSSHHello(data, direction)
     output_str_ary
 end
 
-def PrintKeyExchangeInit(data, direction)
-    puts "PrintKeyExchangeInit"
-    output_str_ary = [
-        "=======================================================================",
-        ">>PrintKeyExchangeInit   " + direction, 
-        "-----------------------------------------------------------------------"]
-
+def PrintKeyExchangeInit()
     data_format = [
         {:field_name => "Packet length", :field_size => 4, :field_type => :NUM_FIELD, :field_content => 0},
         {:field_name => "Padding length", :field_size => 1, :field_type => :NUM_FIELD, :field_content => 0},
@@ -142,24 +134,10 @@ def PrintKeyExchangeInit(data, direction)
         {:field_name => "Padding String", :field_size => 0, :field_type => :OCT_FIELD, :field_content => 0,
             :filed_update => ->() { data_format.detect{|item| item[:field_name] == "Padding length"}[:field_content] } },
     ]
-    output_str_ary += PrintDataByDataStructDescription(data_format, data)
-    total_size = 0
-    data_format.each do |item|
-        total_size += item[:field_size]
-    end
-    yield total_size if block_given?
-    output_str_ary[1] += " [Total : %d bytes ] " % total_size
-    output_str_ary
 end
 
 
-def PrintECDHKeyExchangeInit(data, direction)
-    puts "PrintECDHKeyExchangeInit"
-    output_str_ary = [
-        "=======================================================================",
-        ">>PrintECDHKeyExchangeInit   " + direction, 
-        "-----------------------------------------------------------------------"]
-
+def PrintECDHKeyExchangeInit()
     data_format = [
         {:field_name => "Packet length", :field_size => 4, :field_type => :NUM_FIELD, :field_content => 0},
         {:field_name => "Padding length", :field_size => 1, :field_type => :NUM_FIELD, :field_content => 0},
@@ -170,23 +148,9 @@ def PrintECDHKeyExchangeInit(data, direction)
         {:field_name => "Padding String", :field_size => 0, :field_type => :OCT_FIELD, :field_content => 0,
             :filed_update => ->() { data_format.detect{|item| item[:field_name] == "Padding length"}[:field_content] } },
     ]
-    output_str_ary += PrintDataByDataStructDescription(data_format, data)
-    total_size = 0
-    data_format.each do |item|
-        total_size += item[:field_size]
-    end
-    yield total_size if block_given?
-    output_str_ary[1] += " [Total : %d bytes ] " % total_size
-    output_str_ary
 end
 
-def PrintECDHKeyExchangeReply(data, direction)
-    puts "PrintECDHKeyExchangeReply"
-    output_str_ary = [
-        "=======================================================================",
-        ">>PrintECDHKeyExchangeReply   " + direction, 
-        "-----------------------------------------------------------------------"]
-    
+def PrintECDHKeyExchangeReply()
     data_format = [
         {:field_name => "Packet length", :field_size => 4, :field_type => :NUM_FIELD, :field_content => 0},
         {:field_name => "Padding length", :field_size => 1, :field_type => :NUM_FIELD, :field_content => 0},
@@ -210,24 +174,10 @@ def PrintECDHKeyExchangeReply(data, direction)
         {:field_name => "Padding String", :field_size => 0, :field_type => :OCT_FIELD, :field_content => 0,
             :filed_update => ->() { data_format.detect{|item| item[:field_name] == "Padding length"}[:field_content] } },
     ]
-    output_str_ary += PrintDataByDataStructDescription(data_format, data)
-    total_size = 0
-    data_format.each do |item|
-        total_size += item[:field_size]
-    end
-    yield total_size if block_given?
-    output_str_ary[1] += " [Total : %d bytes ]" % total_size
-    output_str_ary
 end
 
 
-def PrintNewKeys(data, direction)
-    puts "PrintNewKeys"
-    output_str_ary = [
-        "=======================================================================",
-        ">>PrintNewKeys    " + direction, 
-        "-----------------------------------------------------------------------"]
-    
+def PrintNewKeys()
     data_format = [
         {:field_name => "Packet length", :field_size => 4, :field_type => :NUM_FIELD, :field_content => 0},
         {:field_name => "Padding length", :field_size => 1, :field_type => :NUM_FIELD, :field_content => 0},
@@ -235,14 +185,6 @@ def PrintNewKeys(data, direction)
         {:field_name => "Padding String", :field_size => 0, :field_type => :OCT_FIELD, :field_content => 0,
             :filed_update => ->() { data_format.detect{|item| item[:field_name] == "Padding length"}[:field_content] } },
     ]
-    output_str_ary += PrintDataByDataStructDescription(data_format, data)
-    total_size = 0
-    data_format.each do |item|
-        total_size += item[:field_size]
-    end
-    yield total_size if block_given?
-    output_str_ary[1] += " [Total : %d bytes ] " % total_size
-    output_str_ary
 end
 
 
@@ -250,7 +192,7 @@ def PrintUnknowData(data, direction)
     puts "PrintUnknowData"
     output_str_ary = [
         "=======================================================================",
-        ">>PrintUnknowData  (Maybe encrypted) " + direction,
+        ">> PrintUnknowData  (Maybe encrypted) " + direction,
         "-----------------------------------------------------------------------"]
     yield data.size if block_given?
     output_str_ary[1] += " [Total : %d bytes ] " % data.size
@@ -275,6 +217,31 @@ end
 
 @method_idx = 0
 @output_to_file = []
+
+
+def PrintSSHProcolDataDispatch(data, direction)
+    output_str_ary = []
+    method_sym = @print_ary_by_msg_code[data[5]]
+    if method_sym == nil then
+        output_str_ary += PrintUnknowData(data, direction)
+        yield data.size if block_given?
+        return output_str_ary
+    end
+    data_format = send(@print_ary_by_msg_code[data[5]])
+    puts method_sym.to_s
+    output_str_ary = [
+        "=======================================================================",
+        ">> " + method_sym.to_s + "  " + direction, 
+        "-----------------------------------------------------------------------"]
+    output_str_ary += PrintDataByDataStructDescription(data_format, data)
+    total_size = 0
+    data_format.each do |item|
+        total_size += item[:field_size]
+    end
+    yield total_size if block_given?
+    output_str_ary[1] += " [Total : %d bytes ] " % total_size
+    output_str_ary
+end
 
 
 def ParseSSHProtocolData(data_buf, is_send_to_server, log_idx)
@@ -302,16 +269,11 @@ def ParseSSHProtocolData(data_buf, is_send_to_server, log_idx)
                                     end
             @method_idx += 1
         else
-            method_sym = @print_ary_by_msg_code[data_ary[5]]
-            if method_sym == nil then
-                @output_to_file += PrintUnknowData(data_ary, DirectionString(is_send_to_server))
-                return 
+            @output_to_file += PrintSSHProcolDataDispatch(data_ary, DirectionString(is_send_to_server)) do |data_size|
+                puts "Parsed data size" + data_size.to_s
+                data_remain -= data_size
+                puts "Remained data size" + data_remain.to_s
             end
-            @output_to_file += send(@print_ary_by_msg_code[data_ary[5]], data_ary, DirectionString(is_send_to_server)) do |data_size|
-                                        puts "Parsed data size" + data_size.to_s
-                                        data_remain -= data_size
-                                        puts "Remained data size" + data_remain.to_s
-                                    end
         end
         if data_remain > 0 then
             data_ary = data_ary[data_ary.size - data_remain, data_remain]
@@ -340,6 +302,8 @@ log_file_list.each do | log_file_name |
         is_send = false
         data_buf = []
         data_log_index = 0
+        @output_to_file = []
+        @method_idx = 0
         File.open(log_file_name, "r") do |fh| 
             fh.each_line.with_index(1) do |line, index|
                 if is_transmit_data && line =~ /^[0-9a-fA-F][0-9a-fA-F]/ then
@@ -359,7 +323,7 @@ log_file_list.each do | log_file_name |
             @output_to_file.each do |line|
                 f.print (line + "\n")
             end
-            @output_to_file = []
+            
         end
     end
 end
