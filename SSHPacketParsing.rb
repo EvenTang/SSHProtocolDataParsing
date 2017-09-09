@@ -495,6 +495,8 @@ log_file_list.each do | log_file_name |
         is_send = false
         data_buf = []
         data_log_index = 0
+        @output_to_file = []
+        @method_idx = 0
         File.open(log_file_name, "r") do |fh| 
             fh.each_line.with_index(1) do |line, index|
                 if is_transmit_data && line =~ /^[0-9a-fA-F][0-9a-fA-F]/ then
@@ -514,7 +516,7 @@ log_file_list.each do | log_file_name |
             @output_to_file.each do |line|
                 f.print (line + "\n")
             end
-            @output_to_file = []
+            
         end
     end
 end
