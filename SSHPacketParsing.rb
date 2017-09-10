@@ -11,8 +11,12 @@ def PrintFormatBinData(data, count_one_line)
     s_idx = 0
     e_idx = s_idx + count_one_line
     e_idx = data.size if e_idx > data.size;
+    line_len = count_one_line
+    line_len = data.size if count_one_line > data.size
+    layout_num = line_len * 2 + (line_len - 1)
     while s_idx < data.size
-        str_out_ary.push data[s_idx...e_idx].map{|i| "%02X" % i }.join(" ")
+        printable_str = data[s_idx...e_idx].map{|i| i.chr }.join().gsub(/[^[:print:]]/,'.')        
+        str_out_ary.push ("%-#{layout_num}s     %s" % [data[s_idx...e_idx].map{|i| "%02X" % i }.join(" "), printable_str])
         s_idx = e_idx
         e_idx = s_idx + count_one_line;
         e_idx = data.size if e_idx > data.size;
@@ -187,12 +191,13 @@ def PrintNewKeys()
     ]
 end
 
+@is_plain_data = false
 
-def PrintUnknowData(data, direction) 
-    puts "PrintUnknowData"
+def PrintServiceData(data, direction) 
+    puts "PrintServiceData"
     output_str_ary = [
         "=======================================================================",
-        ">> PrintUnknowData  (Maybe encrypted) " + direction,
+        ">> PrintServiceData  (%-15s) %s " % [@is_plain_data ? "PlainData" : "EncryptedData", direction],
         "-----------------------------------------------------------------------"]
     yield data.size if block_given?
     output_str_ary[1] += " [Total : %d bytes ] " % data.size
@@ -223,7 +228,7 @@ def PrintSSHProcolDataDispatch(data, direction)
     output_str_ary = []
     method_sym = @print_ary_by_msg_code[data[5]]
     if method_sym == nil then
-        output_str_ary += PrintUnknowData(data, direction)
+        output_str_ary += PrintServiceData(data, direction)
         yield data.size if block_given?
         return output_str_ary
     end
@@ -277,7 +282,7 @@ def ParseSSHProtocolData(data_buf, is_send_to_server, log_idx)
                 end
             end
         rescue
-            @output_to_file += PrintUnknowData(data_ary, DirectionString(is_send_to_server)) do |data_size|
+            @output_to_file += PrintServiceData(data_ary, DirectionString(is_send_to_server)) do |data_size|
                 puts "Parsed data size" + data_size.to_s
                 data_remain -= data_size
                 puts "Remained data size" + data_remain.to_s
@@ -296,15 +301,15 @@ puts "Start Parsing!"
 puts ARGV.size
 ARGV.each {|item| puts item }
 
-if ARGV.size >= 1 and ARGV[0] =~ /.*\.txt/
+if ARGV.size >= 1 and ARGV[0] =~ /.*\.(txt|log)/
     log_file_list = [ARGV[0]]
 else
-    log_file_list = Dir["./*.txt"]
+    log_file_list = Dir["./*.txt"] + Dir["./*.log"]
 end
 
 log_file_list.each do | log_file_name |
-    if log_file_name =~ /(.*)\.txt/
-        f = File.new($1 + "_parsed.txt", "w") 
+    if log_file_name =~ /(.*)\.(txt|log)/
+        f = File.new($1 + ".parsed", "w") 
         puts "Parsing #{$1}"
         is_transmit_data = false
         is_send = false
@@ -314,13 +319,19 @@ log_file_list.each do | log_file_name |
         @method_idx = 0
         File.open(log_file_name, "r") do |fh| 
             fh.each_line.with_index(1) do |line, index|
-                if is_transmit_data && line =~ /^[0-9a-fA-F][0-9a-fA-F]/ then
-                    data_buf.push line
+                if is_transmit_data && line =~ /(\[.*2017\]\s*)?(([0-9a-fA-F][0-9a-fA-F]\s*)+)/ then
+                    if line =~ /(\[.*2017\]\s*)(.*)/ then
+                        if $2 =~ /^(([0-9a-fA-F][0-9a-fA-F]\s*)+)/ then
+                            data_buf.push $1
+                        end
+                    elsif line =~ /^(([0-9a-fA-F][0-9a-fA-F]\s*)+)/
+                        data_buf.push $1
+                    end
                 elsif !data_buf.empty?
                     begin
                         ParseSSHProtocolData(data_buf, is_send, data_log_index)
                     rescue Exception => e
-                        error_msg = "!!! CAN'T parse : %s, located in log file : %d " % [e.to_s, data_log_index]
+                        error_msg = "!!! Can't parse : %s, located in log file : %d " % [e.to_s, data_log_index]
                         puts error_msg
                         @output_to_file += [error_msg, "Parsing Result Missing!! Check the following"]
                     ensure
@@ -330,10 +341,14 @@ log_file_list.each do | log_file_name |
 
                 begin
                     case line
-                    when /.*UbloxSSHDataSendStart.*/    then is_transmit_data = true; data_log_index = index; is_send = true;
-                    when /.*UbloxSSHDataSendStop.*/     then is_transmit_data = false
-                    when /.*UbloxSSHDataRecieveStart.*/ then is_transmit_data = true; data_log_index = index; is_send = false;
-                    when /.*UbloxSSHDataRecieveStop.*/  then is_transmit_data = false
+                    when /.*UbloxSSHDataSendtart_PlainData.*/       then is_transmit_data = true; data_log_index = index; is_send = true; @is_plain_data = true
+                    when /.*UbloxSSHDataSendStop_PlainData.*/       then is_transmit_data = false; data_log_index = index; 
+                    when /.*UbloxSSHDataRecieveStart_PlainData.*/   then is_transmit_data = true; data_log_index = index; is_send = false; @is_plain_data = true
+                    when /.*UbloxSSHDataRecieveStop_PlainData.*/    then is_transmit_data = false; data_log_index = index; 
+                    when /.*UbloxSSHDataSendStart.*/                then is_transmit_data = true; data_log_index = index; is_send = true; @is_plain_data = false
+                    when /.*UbloxSSHDataSendStop.*/                 then is_transmit_data = false
+                    when /.*UbloxSSHDataRecieveStart.*/             then is_transmit_data = true; data_log_index = index; is_send = false; @is_plain_data = false
+                    when /.*UbloxSSHDataRecieveStop.*/              then is_transmit_data = false
                     end
                 rescue
                     puts " !!!!!!This line contains NON-ACSII code, line number : %d " % index
