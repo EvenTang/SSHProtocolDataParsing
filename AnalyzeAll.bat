@@ -1,3 +1,3 @@
-del *_parsed.txt
+del *.parsed
 ruby .\SSHPacketParsing.rb
 pause
