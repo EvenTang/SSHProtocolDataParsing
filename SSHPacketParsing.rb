@@ -79,7 +79,7 @@ def PrintSSHHello(data, direction)
         "-----------------------------------------------------------------------"]
 
     data_format = [
-        {:field_name => "Protocal", :field_size => 0, :field_type => :STR_FIELD, :field_content => 0,
+        {:field_name => "Protocol", :field_size => 0, :field_type => :STR_FIELD, :field_content => 0,
          :filed_update => ->() { data.map{|i| "%02X" % i }.join().index("0D0A") / 2 + 2 } }
     ]
     output_str_ary += PrintDataByDataStructDescription(data_format, data)
