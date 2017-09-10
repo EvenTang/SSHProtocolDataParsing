@@ -79,7 +79,7 @@ def PrintSSHHello(data, direction)
         "-----------------------------------------------------------------------"]
 
     data_format = [
-        {:field_name => "Protocal", :field_size => 0, :field_type => :STR_FIELD, :field_content => 0,
+        {:field_name => "Protocol", :field_size => 0, :field_type => :STR_FIELD, :field_content => 0,
          :filed_update => ->() { data.map{|i| "%02X" % i }.join().index("0D0A") / 2 + 2 } }
     ]
     output_str_ary += PrintDataByDataStructDescription(data_format, data)
@@ -261,15 +261,23 @@ def ParseSSHProtocolData(data_buf, is_send_to_server, log_idx)
     
     @output_to_file.push "\n======================= From Log line : %d ===========================" % log_idx
     while data_remain > 0
-        if @method_idx < @print_start_info.size then
-            @output_to_file += send(@print_start_info[@method_idx], data_ary, DirectionString(is_send_to_server)) do |data_size|
-                                        puts "Parsed data size" + data_size.to_s
-                                        data_remain -= data_size
-                                        puts "Remained data size" + data_remain.to_s
-                                    end
-            @method_idx += 1
-        else
-            @output_to_file += PrintSSHProcolDataDispatch(data_ary, DirectionString(is_send_to_server)) do |data_size|
+        begin
+            if @method_idx < @print_start_info.size then
+                @output_to_file += send(@print_start_info[@method_idx], data_ary, DirectionString(is_send_to_server)) do |data_size|
+                                            puts "Parsed data size" + data_size.to_s
+                                            data_remain -= data_size
+                                            puts "Remained data size" + data_remain.to_s
+                                        end
+                @method_idx += 1
+            else
+                @output_to_file += PrintSSHProcolDataDispatch(data_ary, DirectionString(is_send_to_server)) do |data_size|
+                    puts "Parsed data size" + data_size.to_s
+                    data_remain -= data_size
+                    puts "Remained data size" + data_remain.to_s
+                end
+            end
+        rescue
+            @output_to_file += PrintUnknowData(data_ary, DirectionString(is_send_to_server)) do |data_size|
                 puts "Parsed data size" + data_size.to_s
                 data_remain -= data_size
                 puts "Remained data size" + data_remain.to_s
@@ -309,15 +317,26 @@ log_file_list.each do | log_file_name |
                 if is_transmit_data && line =~ /^[0-9a-fA-F][0-9a-fA-F]/ then
                     data_buf.push line
                 elsif !data_buf.empty?
-                    ParseSSHProtocolData(data_buf, is_send, data_log_index)
-                    data_buf = []
+                    begin
+                        ParseSSHProtocolData(data_buf, is_send, data_log_index)
+                    rescue Exception => e
+                        error_msg = "!!! CAN'T parse : %s, located in log file : %d " % [e.to_s, data_log_index]
+                        puts error_msg
+                        @output_to_file += [error_msg, "Parsing Result Missing!! Check the following"]
+                    ensure
+                        data_buf = []
+                    end
                 end
 
-                case line
-                when /.*UbloxSSHDataSendStart.*/    then is_transmit_data = true; data_log_index = index; is_send = true;
-                when /.*UbloxSSHDataSendStop.*/     then is_transmit_data = false
-                when /.*UbloxSSHDataRecieveStart.*/ then is_transmit_data = true; data_log_index = index; is_send = false;
-                when /.*UbloxSSHDataRecieveStop.*/  then is_transmit_data = false
+                begin
+                    case line
+                    when /.*UbloxSSHDataSendStart.*/    then is_transmit_data = true; data_log_index = index; is_send = true;
+                    when /.*UbloxSSHDataSendStop.*/     then is_transmit_data = false
+                    when /.*UbloxSSHDataRecieveStart.*/ then is_transmit_data = true; data_log_index = index; is_send = false;
+                    when /.*UbloxSSHDataRecieveStop.*/  then is_transmit_data = false
+                    end
+                rescue
+                    puts " !!!!!!This line contains NON-ACSII code, line number : %d " % index
                 end
             end
             @output_to_file.each do |line|
