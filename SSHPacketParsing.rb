@@ -341,7 +341,7 @@ log_file_list.each do | log_file_name |
 
                 begin
                     case line
-                    when /.*UbloxSSHDataSendtart_PlainData.*/       then is_transmit_data = true; data_log_index = index; is_send = true; @is_plain_data = true
+                    when /.*UbloxSSHDataSendStart_PlainData.*/       then is_transmit_data = true; data_log_index = index; is_send = true; @is_plain_data = true
                     when /.*UbloxSSHDataSendStop_PlainData.*/       then is_transmit_data = false; data_log_index = index; 
                     when /.*UbloxSSHDataRecieveStart_PlainData.*/   then is_transmit_data = true; data_log_index = index; is_send = false; @is_plain_data = true
                     when /.*UbloxSSHDataRecieveStop_PlainData.*/    then is_transmit_data = false; data_log_index = index; 
